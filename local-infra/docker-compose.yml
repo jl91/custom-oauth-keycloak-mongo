@@ -28,15 +28,20 @@ services:
       custom-oauth_network-default:
         ipv4_address: 10.2.0.10
 
-  custom-oauth_adminer:
-    image: adminer:4.8.1-standalone
-    container_name: custom-oauth_adminer
-    hostname: custom-oauth_adminer
+  custom-oauth_pgadmin4:
+    image: dpage/pgadmin4:latest
+    container_name: custom-oauth_pgadmin4
+    hostname: custom-oauth_pgadmin4
     depends_on:
       - custom-oauth_postgres
+    links:
+      - custom-oauth_postgres:postgres
     ports:
-      - "18080:8080"
+      - "18080:80"
     restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "root@root.com.br"
+      PGADMIN_DEFAULT_PASSWORD: "root"
     networks:
       custom-oauth_network-default:
         ipv4_address: 10.2.0.11
@@ -48,13 +53,17 @@ services:
     stdin_open: true
     depends_on:
       - custom-oauth_postgres
+    links:
+      - custom-oauth_postgres:postgres
     environment:
-      DB_ADDR: custom-oauth_postgres
-      DB_PORT: 15432
-      DB_DATABASE: keycloak
-      DB_SCHEMA: public
-      DB_USER: root
-      DB_PASSWORD: root
+      KC_DB: postegres
+      KC_DB_URL: jdbc:postgresql://postgres/keycloak
+      KC_DB_DATABASE: keycloak
+      KC_DB_SCHEMA: keycloak
+      KC_DB_USERNAME: root
+      KC_DB_PASSWORD: root
+      KC_HOSTNAME: postgres
+      KC_DB_PORT: 15432
       KEYCLOAK_ADMIN: root
       KEYCLOAK_ADMIN_PASSWORD: root
       KEYCLOAK_USER: user
