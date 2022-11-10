@@ -1,0 +1,108 @@
+# Use postgres/example user/password credentials
+version: '3.1'
+
+networks:
+  custom-oauth_network-default:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 10.2.0.0/24
+
+services:
+  custom-oauth_postgres:
+    image: postgres:14.5-bullseye
+    container_name: custom-oauth_postgres
+    hostname: custom-oauth_postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      PGDATA: /data/postgres
+    volumes:
+      - ./pgsql/data:/var/lib/postgresql/data
+      - ./pgsql/startup:/docker-entrypoint-initdb.d/
+    ports:
+      - "15432:5432"
+    restart: unless-stopped
+    networks:
+      custom-oauth_network-default:
+        ipv4_address: 10.2.0.10
+
+  custom-oauth_adminer:
+    image: adminer:4.8.1-standalone
+    container_name: custom-oauth_adminer
+    hostname: custom-oauth_adminer
+    depends_on:
+      - custom-oauth_postgres
+    ports:
+      - "18080:8080"
+    restart: unless-stopped
+    networks:
+      custom-oauth_network-default:
+        ipv4_address: 10.2.0.11
+        
+  custom-oauth_keycloak:
+    image: quay.io/keycloak/keycloak:19.0.3
+    container_name: custom-oauth_keycloak
+    hostname: custom-oauth_keycloak
+    stdin_open: true
+    depends_on:
+      - custom-oauth_postgres
+    environment:
+      DB_ADDR: custom-oauth_postgres
+      DB_PORT: 15432
+      DB_DATABASE: keycloak
+      DB_SCHEMA: public
+      DB_USER: root
+      DB_PASSWORD: root
+      KEYCLOAK_ADMIN: root
+      KEYCLOAK_ADMIN_PASSWORD: root
+      KEYCLOAK_USER: user
+      KEYCLOAK_PASSWORD: user
+      KEYCLOAK_LOGLEVEL: TRACE
+    ports:
+      - "28080:8080"
+      - "28443:8443"
+    restart: unless-stopped
+    command: start-dev
+    networks:
+      custom-oauth_network-default:
+        ipv4_address: 10.2.0.30
+
+  custom-oauth_mongodb:
+    image: mongo:6.0.2-focal
+    container_name: custom-oauth_mongodb
+    hostname: custom-oauth_mongodb
+    restart: on-failure
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    ports:
+      - 27017:27017
+    networks:
+      custom-oauth_network-default:
+        ipv4_address: 10.2.0.40
+
+  custom-oauth_mongo-express:
+    image: mongo-express:1.0.0-alpha.4
+    container_name: custom-oauth_mongo-express
+    hostname: custom-oauth_mongo-express
+    restart: unless-stopped
+    depends_on:
+      - custom-oauth_mongodb
+    links:
+      - custom-oauth_mongodb:mongo
+    ports:
+      - 28081:8081
+    environment:
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: 1
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: root
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+      ME_CONFIG_MONGODB_SERVER: custom-oauth_mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_MONGODB_URL: mongodb://root:root@mongo:27017/
+    networks:
+      custom-oauth_network-default:
+        ipv4_address: 10.2.0.41
