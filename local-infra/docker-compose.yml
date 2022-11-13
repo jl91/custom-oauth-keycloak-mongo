@@ -56,14 +56,14 @@ services:
     links:
       - custom-oauth_postgres:postgres
     environment:
-      KC_DB: postegres
-      KC_DB_URL: jdbc:postgresql://postgres/keycloak
-      KC_DB_DATABASE: keycloak
-      KC_DB_SCHEMA: keycloak
-      KC_DB_USERNAME: root
-      KC_DB_PASSWORD: root
-      KC_HOSTNAME: postgres
-      KC_DB_PORT: 15432
+      DB_VENDOR: POSTGRES
+      DB_ADDR: postgres
+      DB_DATABASE: keycloak
+      DB_SCHEMA: keycloak
+      DB_PORT: 5432
+      DB_USER: root
+      DB_PASSWORD: root
+      JGROUPS_DISCOVERY_PROTOCOL: TCPPING
       KEYCLOAK_ADMIN: root
       KEYCLOAK_ADMIN_PASSWORD: root
       KEYCLOAK_USER: user
@@ -74,6 +74,8 @@ services:
       - "28443:8443"
     restart: unless-stopped
     command: start-dev
+    volumes:
+      - ./keycloak/data:/opt/keycloak/data
     networks:
       custom-oauth_network-default:
         ipv4_address: 10.2.0.30
