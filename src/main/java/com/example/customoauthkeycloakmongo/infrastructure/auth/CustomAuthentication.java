@@ -1,18 +1,19 @@
 package com.example.customoauthkeycloakmongo.infrastructure.auth;
 
+import com.nimbusds.jwt.JWT;
 import com.nimbusds.jwt.JWTParser;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @Slf4j
@@ -40,6 +41,8 @@ public class CustomAuthentication {
             throw new BadCredentialsException("Invalid jwt token");
         }
 
+        final var tokenType = getTokenType(authorizationHeader);
+
         return new UsernamePasswordAuthenticationToken(
                 "teste",
                 "",
@@ -52,6 +55,23 @@ public class CustomAuthentication {
                         }
                 )
         );
+
+    }
+
+    private String extractTokenFromHeader(
+            final String header
+    ) {
+        final var pieces = header.split(" ");
+        return pieces[1];
+    }
+
+    private JWT decodeToken(final String token) {
+        try {
+            return JWTParser.parse(token);
+        } catch (Throwable throwable) {
+            log.error("Error on try to decode token {}, Exception: {}", token, throwable);
+            return null;
+        }
 
     }
 
@@ -76,17 +96,32 @@ public class CustomAuthentication {
     private boolean isValidJWTToken(
             final String header
     ) {
-        final var pieces = header.split(" ");
+        final var token = extractTokenFromHeader(header);
 
-        final var token = pieces[1];
+        return decodeToken(token) != null;
+    }
+
+    private String getTokenType(
+            final String header
+    ) {
+        final var token = extractTokenFromHeader(header);
+        final var jwt = decodeToken(token);
 
         try {
-            JWTParser.parse(token);
-            return true;
+            Map<String, Object> headers = new LinkedHashMap<>(jwt.getHeader().toJSONObject());
+            Map<String, Object> claims = jwt.getJWTClaimsSet().getClaims();
+
+            if (claims.containsKey("iss")) {
+                return "mongo";
+            }
+
+            return "keycloak";
+
         } catch (Throwable throwable) {
-            log.error("Error on try do decode token {}, Exception: {}", token, throwable);
-            return false;
+            log.error("Error on try to parse token Claims token {}, Exception: {}", token, throwable);
         }
+
+        return "";
     }
 
 }
